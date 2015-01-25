@@ -1,0 +1,107 @@
+---
+title: "Project_Machine Learning"
+author: "Nitasha"
+date: "Thursday, January 22, 2015"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+
+<b> Background and Objective </b>
+The dataset included data from accelerometers on the belt, forearm, arm and dumbell of 6 partcipants.Goal of the project was to build a model to predict the manner in which the exercise was done.
+
+<b> Data Cleaning </b>
+The dataset consisted of 160 variables. A lot of variables had missing NA values. The first step involved cleaning the dataset to exclude variables which had majority of values missing, had near zero variance or were irrelevant to the model building such as timestamp data, X variable and window information. This yielded a final dataset with 53 variables.  
+
+```{r,eval=TRUE}
+pml_test<-read.csv("C:/Users/Nina Sagar/Documents/pml-testing.csv",header=TRUE,na.strings=c("NA","#DIV/0!"))
+pml_train<-read.csv("C:/Users/Nina Sagar/Documents/pml-training.csv",header=TRUE,na.strings=c("NA","#DIV/0!"))
+pml_train1<-pml_train[,8:160]
+pml_train2<-pml_train1[,c(1:4,30:42,53:61,77:79,95,106:117,133,144:153)]
+
+```
+
+<b> Creating the Cross Validation data set </b>
+The training dataset was divided into two datasets, one used for model building and the second for cross validation.
+
+```{r,eval=TRUE,message=FALSE,warning=FALSE}
+library(caret)
+set.seed(12345)
+pml_train2_cv<-createDataPartition(y=pml_train2$classe,p=0.5,list=FALSE)
+pml_train2_cv1<-pml_train2[pml_train2_cv,]
+pml_train2_cv2<-pml_train2[-pml_train2_cv,]
+
+```
+
+<b> Model Building </b>
+Random forest was used to train the model on first half of the training set.
+Cross validation ( 3 fold) was applied within Random forest also using the trainingcontrol parameters with method=cv and number=3.
+
+```{r, eval=TRUE,message=FALSE,echo=FALSE}
+set.seed(12345)
+control<-trainControl(method="cv",number=3)
+modelfit<-train(classe~.,method="rf",data=pml_train2_cv1,trControl=control)
+
+```
+The final model OOB error estimate and confusion matrix were as follows:
+
+
+```{r,eval=TRUE}
+results<-modelfit$results
+finalmodel<-modelfit$finalModel
+
+
+```
+
+```{r,eval=TRUE,envir=globalenv(),cache=TRUE}
+finalmodel
+
+```
+
+From the above it can be see that both the overall OOB accuracy rate and the OOB accuracy associated with prediction of class A (the class associated with the correct performance of the exercise) is very high.
+The insample accuracy of the model was also calculated as follows:
+```{r,eval=TRUE}
+confusionmatrix_IS<-confusionMatrix(predict(modelfit,pml_train2_cv1),pml_train2_cv1$classe)
+
+```
+
+```{r,eval=TRUE,cache=TRUE}
+confusionmatrix_IS
+
+```
+
+
+Interestingly as seen above, the in-sample accuracy of the model is 100%.
+
+<b> Cross Validation </b>
+The model was then used to predict the classe on the second half of the training set.The overall accuracy in this case is again quite good. The accuracy of predicting Class A is also very high.
+
+```{r,eval=TRUE}
+crossvalid<-predict(modelfit,newdata=pml_train2_cv2)
+confusionmatrix_CV<-confusionMatrix(crossvalid,pml_train2_cv2$classe)
+
+```
+
+```{r,eval=TRUE}
+confusionmatrix_CV
+```
+
+<b> Variable Importance </b>
+The random forest was also used to see the relative importance of various variables in the model.
+
+```{r,eval=FALSE}
+importance<-varImp(modelfit,scale=FALSE)
+plot(importance)
+```
+
+<img src="C:/Users/Nina Sagar/Documents/Nitasha/Trainings/machine learning/project/Rplot.png">
+
+<b> Testing Data </b>
+The model was finally applied to the testing data set which including 20 test cases. The model was able to predict 20/20 test cases correctly. 
+
+```{r,eval=FALSE}
+test<-predict(modelfit,newdata=pml_test)
+```
+
+
